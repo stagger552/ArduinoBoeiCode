@@ -36,7 +36,10 @@
 #include <hal/hal.h>
 #include <SPI.h>
 #include <DS18B20Sensor.h>
+
 #include <phMeter.h>
+#include <Turbiditysensor.h>
+
 
 #define BUILDINLED 25
 //
@@ -231,6 +234,7 @@ void do_send(osjob_t *j)
         // PUT HERE YOUR CODE TO READ THE SENSORS AND CONSTRUCT THE TTS PAYLOAD
         const uint8_t ONE_WIRE_BUS = 13;
         const uint8_t PH_SENSOR_PIN = 15;
+        const uint8_t Trubilty_SENSOR_PIN = 12;
 
         //                                                          Tempratuur
 
@@ -263,6 +267,19 @@ void do_send(osjob_t *j)
         // Output the pH value to the Serial Monitor
         Serial.print("pH Value: ");
         Serial.println(pHValue);
+
+        //                                                         Trubilty Sensor
+
+        TurbiditySensor turbSensor(Trubilty_SENSOR_PIN);
+
+        float ntu_val = turbSensor.getNTU();
+        float volt = turbSensor.getVoltage();
+
+
+        Serial.print("Nephelometric Turbidity Units (NTU): ");
+        Serial.println(ntu_val);
+        Serial.print("Turbidity voltage: ");
+        Serial.println(volt);
 
         // Print the payload to the console
         Serial.print("Payload: ");
