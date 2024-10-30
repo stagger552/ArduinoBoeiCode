@@ -40,7 +40,6 @@
 #include <phMeter.h>
 #include <Turbiditysensor.h>
 
-
 #define BUILDINLED 25
 //
 // For normal use, we require that you edit the sketch to replace FILLMEIN
@@ -52,7 +51,7 @@
 #ifdef COMPILE_REGRESSION_TEST
 #define FILLMEIN 0
 #else
-#warning "You must replace the values marked FILLMEIN with real values from the TTN control panel!"
+//#warning "You must replace the values marked FILLMEIN with real values from the TTN control panel!"
 #define FILLMEIN (#dont edit this, edit the lines that use FILLMEIN)
 #endif
 
@@ -73,8 +72,14 @@ void os_getDevEui(u1_t *buf) { memcpy_P(buf, DEVEUI, 8); }
 static const u1_t PROGMEM APPKEY[16] = {0x45, 0x80, 0xAC, 0xAA, 0xE6, 0xF7, 0x57, 0x7A, 0x9A, 0x8A, 0x3F, 0xEC, 0x5A, 0x4D, 0xB4, 0x1E};
 void os_getDevKey(u1_t *buf) { memcpy_P(buf, APPKEY, 16); }
 
-static uint8_t mydata[2];
+static uint8_t mydata[6];
 static osjob_t sendjob;
+
+const uint8_t ONE_WIRE_BUS = 25 ;
+const uint8_t PH_SENSOR_PIN = 15;
+const uint8_t Trubilty_SENSOR_PIN = 12;
+    // Create an instance of DS18B20Sensor
+DS18B20Sensor temperatureSensor(ONE_WIRE_BUS);
 
 void do_send(osjob_t *);
 
@@ -232,24 +237,11 @@ void do_send(osjob_t *j)
     else
     {
         // PUT HERE YOUR CODE TO READ THE SENSORS AND CONSTRUCT THE TTS PAYLOAD
-        const uint8_t ONE_WIRE_BUS = 13;
-        const uint8_t PH_SENSOR_PIN = 15;
-        const uint8_t Trubilty_SENSOR_PIN = 12;
 
-        //                                                          Tempratuur
 
-        // Create an instance of DS18B20Sensor
-        DS18B20Sensor temperatureSensor(ONE_WIRE_BUS);
-
-        temperatureSensor.begin();
         float tempC = temperatureSensor.getTemperatureC();
         Serial.print("Temperature in Celsius: ");
         Serial.println(tempC);
-
-        // Convert temperature to a byte array
-        int16_t temp = (int16_t)(tempC * 100); // Convert float to int with two decimals of precision
-        mydata[0] = temp >> 8;                 // MSB
-        mydata[1] = temp & 0xFF;               // LSB
 
         //                                                          ph sensor
 
@@ -275,11 +267,27 @@ void do_send(osjob_t *j)
         float ntu_val = turbSensor.getNTU();
         float volt = turbSensor.getVoltage();
 
-
         Serial.print("Nephelometric Turbidity Units (NTU): ");
         Serial.println(ntu_val);
         Serial.print("Turbidity voltage: ");
         Serial.println(volt);
+
+        //                                                         Lorawan
+
+        // Convert temperature to a byte array
+        int16_t temp = (int16_t)(tempC * 100); // Convert float to int with two decimals of precision
+        mydata[0] = temp >> 8;                 // MSB
+        mydata[1] = temp & 0xFF;               // LSB
+
+        // Convert pH value to a byte array
+        int16_t pH = (int16_t)(pHValue * 100); // Convert float to int with two decimals of precision
+        mydata[2] = pH >> 8;                   // MSB
+        mydata[3] = pH & 0xFF;                 // LSB
+
+        // Convert turbidity value to a byte array
+        int16_t turb = (int16_t)(ntu_val * 100); // Convert float to int with two decimals of precision
+        mydata[4] = turb >> 8;                   // MSB
+        mydata[5] = turb & 0xFF;
 
         // Print the payload to the console
         Serial.print("Payload: ");
@@ -302,6 +310,12 @@ void setup()
 {
     Serial.begin(9600);
     Serial.println(F("Starting"));
+
+
+
+    //  Temperatuur
+    temperatureSensor.begin();
+
 
     // LMIC init
     os_init();
