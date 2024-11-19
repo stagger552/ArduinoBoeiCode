@@ -6,16 +6,15 @@
 
 class DS18B20Sensor {
   public:
-    // Constructor
     DS18B20Sensor(uint8_t pin);
 
-    // Function to begin communication
+    
     void begin();
 
-    // Function to get temperature in Celsius
+    
     float getTemperatureC();
 
-    // Function to get temperature in Fahrenheit
+    
     float getTemperatureF();
 
   private:
