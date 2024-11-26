@@ -40,7 +40,14 @@
 #include "Turbiditysensor.h"
 #include <phMeter.h>
 #include "GPSModule.h"
-#define BUILDINLED 25
+#include <Adafruit_NeoPixel.h>
+
+#define LED_PIN  25
+#define NUM_PIXELS 12 // Change this to match the number of LEDs in your strip
+
+
+Adafruit_NeoPixel strip = Adafruit_NeoPixel(NUM_PIXELS, LED_PIN, NEO_GRB + NEO_KHZ800);
+
 //
 // For normal use, we require that you edit the sketch to replace FILLMEIN
 // with values assigned by the TTN console. However, for regression tests,
@@ -316,10 +323,45 @@ void do_send(osjob_t* j){
     // Next TX is scheduled after TX_COMPLETE event.
 }
 
+
+void setAllPixels(uint8_t red, uint8_t green, uint8_t blue) {
+  for (int i = 0; i < strip.numPixels(); i++) {
+    strip.setPixelColor(i, strip.Color(red, green, blue));
+  }
+  strip.show();
+}
+uint32_t Wheel(byte WheelPos) {
+  WheelPos = 255 - WheelPos;
+  if (WheelPos < 85) {
+    return strip.Color(255 - WheelPos * 3, 0, WheelPos * 3);
+  }
+  if (WheelPos < 170) {
+    WheelPos -= 85;
+    return strip.Color(0, WheelPos * 3, 255 - WheelPos * 3);
+  }
+  WheelPos -= 170;
+  return strip.Color(WheelPos * 3, 255 - WheelPos * 3, 0);
+}
+// Create a rainbow cycle effect
+void rainbowCycle(int wait) {
+  for (int j = 0; j < 256 * 5; j++) { // 5 cycles of all colors on the wheel
+    for (int i = 0; i < strip.numPixels(); i++) {
+      strip.setPixelColor(i, Wheel((i * 256 / strip.numPixels() + j) & 255));
+    }
+    strip.show();
+    delay(wait);
+  }
+}
+
+// Helper function to generate rainbow colors
+
 void setup() {
     Serial.begin(9600);
     Serial.println(F("Starting"));
 
+// Initialize the NeoPixel strip
+  strip.begin();
+  strip.show(); // Turn off all pixels by default
 
     // LMIC init
     os_init();
@@ -332,4 +374,5 @@ void setup() {
 
 void loop() {
     os_runloop_once();
+    rainbowCycle(20); 
 }
