@@ -101,6 +101,9 @@ void printHex2(unsigned v)
 
 void onEvent(ev_t ev)
 {
+    String receivedCommand = "";
+bool SEND_DATA = false;
+
     Serial.print(os_getTime());
     Serial.print(": ");
     switch (ev)
@@ -120,6 +123,7 @@ void onEvent(ev_t ev)
     case EV_JOINING:
         Serial.println(F("EV_JOINING"));
         break;
+
     case EV_JOINED:
         Serial.println(F("EV_JOINED"));
         {
@@ -169,17 +173,47 @@ void onEvent(ev_t ev)
         Serial.println(F("EV_REJOIN_FAILED"));
         break;
     case EV_TXCOMPLETE:
-        Serial.println(F("EV_TXCOMPLETE (includes waiting for RX windows)"));
-        if (LMIC.txrxFlags & TXRX_ACK)
-            Serial.println(F("Received ack"));
-        if (LMIC.dataLen)
+        Serial.print(F("Received "));
+        Serial.print(LMIC.dataLen);
+        Serial.println(F(" bytes of payload"));
+
+        // Print the raw payload
+        Serial.print(F("Payload: "));
+        for (int i = 0; i < LMIC.dataLen; i++)
         {
-            Serial.print(F("Received "));
-            Serial.print(LMIC.dataLen);
-            Serial.println(F(" bytes of payload"));
+            Serial.print((char)LMIC.frame[LMIC.dataBeg + i]); // Print as characters
         }
-        // Schedule next transmission
-        os_setTimedCallback(&sendjob, os_getTime() + sec2osticks(TX_INTERVAL), do_send);
+        Serial.println();
+
+        for (int i = 0; i < LMIC.dataLen; i++)
+        {
+            receivedCommand += (char)LMIC.frame[LMIC.dataBeg + i];
+        }
+
+        if (receivedCommand == "START")
+        {
+            startSetup();
+        }
+
+        if (receivedCommand == "TRIGGERDATA")
+        {
+            if (SEND_DATA == true)
+            {
+                SEND_DATA = false;
+            }
+            if (SEND_DATA == false)
+            {
+                SEND_DATA = true;
+            }
+            
+            Serial.print(F("SEND_DATA toggled to: "));
+            Serial.println(SEND_DATA);
+        }
+
+        if (receivedCommand == "KNIPPEREN")
+        {
+            blinkRGB();
+        }
         break;
     case EV_LOST_TSYNC:
         Serial.println(F("EV_LOST_TSYNC"));
@@ -325,28 +359,30 @@ void do_send(osjob_t *j)
     // Next TX is scheduled after TX_COMPLETE event.
 }
 
+void blinkRGB()
+{
+    int durationMs = 30000; // Standard duration: 30 seconds
+    int intervalMs = 500;   // Standard blinking interval: 500 ms
+    int startTime = millis();
+    uint32_t colors[] = {strip.Color(255, 0, 0), strip.Color(0, 255, 0), strip.Color(0, 0, 255)}; // RGB
+    int colorIndex = 0;
 
-void blinkRGB() {
-  int durationMs = 30000; // Standard duration: 30 seconds
-  int intervalMs = 500;  // Standard blinking interval: 500 ms
-  int startTime = millis();
-  uint32_t colors[] = {strip.Color(255, 0, 0), strip.Color(0, 255, 0), strip.Color(0, 0, 255)}; // RGB
-  int colorIndex = 0;
-
-  while (millis() - startTime < durationMs) {
-    for (int i = 0; i < NUM_PIXELS; i++) {
-      strip.setPixelColor(i, colors[colorIndex]); // Set the current color
+    while (millis() - startTime < durationMs)
+    {
+        for (int i = 0; i < NUM_PIXELS; i++)
+        {
+            strip.setPixelColor(i, colors[colorIndex]); // Set the current color
+        }
+        strip.show();
+        delay(intervalMs); // Wait for the interval duration
+        strip.clear();     // Turn off all LEDs
+        strip.show();
+        delay(intervalMs);                 // Wait again
+        colorIndex = (colorIndex + 1) % 3; // Cycle to the next color
     }
-    strip.show();
-    delay(intervalMs); // Wait for the interval duration
-    strip.clear(); // Turn off all LEDs
-    strip.show();
-    delay(intervalMs); // Wait again
-    colorIndex = (colorIndex + 1) % 3; // Cycle to the next color
-  }
 
-  strip.clear(); // Turn off all LEDs after the duration
-  strip.show();
+    strip.clear(); // Turn off all LEDs after the duration
+    strip.show();
 }
 
 void blinkSetup()
@@ -382,20 +418,33 @@ void setup()
     strip.begin();            // Start de NeoPixel
     strip.show();             // Alle LEDs uit
     strip.setBrightness(255); // Pas helderheid aan (0-255)
+}
+void checkDownlink(String Command)
+{
 
+    if (Command == "Start")
+    {
+    }
+    if (Command == "DataTrigger")
+    {
+    }
+    if (Command == "Knipper")
+    {
+    }
+}
+
+void startSetup()
+{
     blinkSetup();
     blinkRGB();
+
     // LMIC init
     os_init();
     // Reset the MAC state. Session and pending data transfers will be discarded.
     LMIC_reset();
 
-    // Start job (sending automatically starts OTAA too)
-    do_send(&sendjob);
 }
-
 void loop()
 {
     os_runloop_once();
 }
-
